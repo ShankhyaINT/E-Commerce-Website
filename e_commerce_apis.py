@@ -232,14 +232,17 @@ def buyfromcart():
                     db.Column('Amount', db.Float(), nullable=False)
                 )
 
-        # Fetching cart details using user id
-        query = db.select([add_to_cart]).where(add_to_cart.columns.User_id == request_data['user_id'])
-        ResultProxy = connection.execute(query)
-        ResultSet = ResultProxy.fetchall()
-
-        # Inserting cart items into the buy table
+        
+        # Inserting data into buy table
         for prod_items in request_data['products']:
-            i = 1 # Flag for stopping duplicate data insertion(fix for bug)
+            # Fetching cart details using user id and product id
+            query = db.select([add_to_cart]).where(
+                                                db.and_(
+                                                    add_to_cart.columns.User_id == request_data['user_id'],
+                                                    add_to_cart.columns.Product_id == prod_items['id']))
+            ResultProxy = connection.execute(query)
+            ResultSet = ResultProxy.fetchall()
+
             for data in ResultSet:
                 insert_query = db.insert(buy).values(
                         User_id=data[1],
@@ -248,11 +251,9 @@ def buyfromcart():
                         Quantity=prod_items['quantity'],
                         Amount=data[5],
                         Payment_method=request_data['payment_method']
-                    )
-                
-                if (i%2!=0): # Logic for stopping duplicate insertion(fix for bug)
-                    connection.execute(insert_query)
-                    i+=1
+                )
+
+                connection.execute(insert_query)
         
         # Updating the product inventory
         for prod_items in request_data['products']:
@@ -267,7 +268,6 @@ def buyfromcart():
             connection.execute(update_query)
 
         # Deleteing items from cart after inserting in buy table
-        # for prod_id in request_data['product_id']:
         for prod_items in request_data['products']:
             delete_query = db.delete(add_to_cart)
             delete_query = delete_query.where(
