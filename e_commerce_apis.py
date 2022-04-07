@@ -223,29 +223,59 @@ def buyfromcart():
                     db.Column('Payment_method', db.String(255), nullable=False)
                 )
         
+        # Table schema
+        product = db.Table('product', metadata,
+                    db.Column('Product_id', db.Integer(), nullable=False, primary_key=True, autoincrement=True),
+                    db.Column('Product_name', db.String(255), nullable=False),
+                    db.Column('Manufacturer', db.String(255), nullable=False),
+                    db.Column('Inventory', db.Integer(), nullable=False),
+                    db.Column('Amount', db.Float(), nullable=False)
+                )
+
         # Fetching cart details using user id
         query = db.select([add_to_cart]).where(add_to_cart.columns.User_id == request_data['user_id'])
         ResultProxy = connection.execute(query)
         ResultSet = ResultProxy.fetchall()
 
         # Inserting cart items into the buy table
-        for data in ResultSet:
-            insert_query = db.insert(buy).values(
-                    User_id=data[1],
-                    Product_id=data[2],
-                    Product_name=data[3],
-                    Quantity=data[4],
-                    Amount=data[5],
-                    Payment_method=request_data['payment_method']
-                )
+        for prod_items in request_data['products']:
+            i = 1 # Flag for stopping duplicate data insertion(fix for bug)
+            for data in ResultSet:
+                insert_query = db.insert(buy).values(
+                        User_id=data[1],
+                        Product_id=prod_items['id'],
+                        Product_name=data[3],
+                        Quantity=prod_items['quantity'],
+                        Amount=data[5],
+                        Payment_method=request_data['payment_method']
+                    )
+                
+                if (i%2!=0): # Logic for stopping duplicate insertion(fix for bug)
+                    connection.execute(insert_query)
+                    i+=1
+        
+        # Updating the product inventory
+        for prod_items in request_data['products']:
+            # Fetching the product inventory details
+            product_query = db.select([product]).where(product.columns.Product_id == prod_items['id'])
+            ResultProxy = connection.execute(product_query)
+            ResultSet = ResultProxy.fetchall()
 
-            ResultProxy = connection.execute(insert_query)
+            # Query for updating the product table
+            update_query = db.update(product).values(Inventory = (ResultSet[0][3] - int(prod_items['quantity'])))
+            update_query = update_query.where(product.columns.Product_id == prod_items['id'])
+            connection.execute(update_query)
 
         # Deleteing items from cart after inserting in buy table
-        delete_query = db.delete(add_to_cart)
-        delete_query = delete_query.where(add_to_cart.columns.User_id == request_data['user_id'])
-        connection.execute(delete_query)
-
+        # for prod_id in request_data['product_id']:
+        for prod_items in request_data['products']:
+            delete_query = db.delete(add_to_cart)
+            delete_query = delete_query.where(
+                                            db.and_(
+                                                add_to_cart.columns.User_id == request_data['user_id'],
+                                                add_to_cart.columns.Product_id == prod_items['id']))
+            connection.execute(delete_query)
+        
         return ('success')
 
 #-----------------------------------------
