@@ -255,7 +255,7 @@ def buyfromcart():
 
                 connection.execute(insert_query)
         
-        # Updating the product inventory
+        # Updating the product inventory table
         for prod_items in request_data['products']:
             # Fetching the product inventory details
             product_query = db.select([product]).where(product.columns.Product_id == prod_items['id'])
