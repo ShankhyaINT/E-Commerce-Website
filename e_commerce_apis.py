@@ -254,18 +254,16 @@ def buyfromcart():
                 )
 
                 connection.execute(insert_query)
-        
-        # Updating the product inventory table
-        for prod_items in request_data['products']:
-            # Fetching the product inventory details
-            product_query = db.select([product]).where(product.columns.Product_id == prod_items['id'])
-            ResultProxy = connection.execute(product_query)
-            ResultSet = ResultProxy.fetchall()
 
-            # Query for updating the product table
-            update_query = db.update(product).values(Inventory = (ResultSet[0][3] - int(prod_items['quantity'])))
-            update_query = update_query.where(product.columns.Product_id == prod_items['id'])
-            connection.execute(update_query)
+                # Fetching the product inventory details
+                product_query = db.select([product]).where(product.columns.Product_id == prod_items['id'])
+                ResultProxy = connection.execute(product_query)
+                ResultSet = ResultProxy.fetchall()
+
+                # Query for updating the inventory of product table
+                update_query = db.update(product).values(Inventory = (ResultSet[0][3] - int(prod_items['quantity'])))
+                update_query = update_query.where(product.columns.Product_id == prod_items['id'])
+                connection.execute(update_query)
 
         # Deleteing items from cart after inserting in buy table
         for prod_items in request_data['products']:
